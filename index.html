@@ -3,465 +3,495 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mock Exchange</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lightweight Charts -->
-    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
-    
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        bg: '#0B0E14',
-                        panel: '#151924',
-                        panelBorder: '#2B3139',
-                        green: '#2EBD85',
-                        red: '#F6465D',
-                        text: '#EAECEF',
-                        textMuted: '#848E9C'
-                    }
-                }
-            }
-        }
-    </script>
+    <title>Admin Auto-Rebalancer</title>
     <style>
-        body { background-color: #0B0E14; color: #EAECEF; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
-        /* Hide scrollbar for clean look */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #2B3139; border-radius: 3px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0d13;
+            color: #e8ecf4;
+            font-family: 'Inter', 'Courier New', monospace;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #1e2636;
+            padding-bottom: 20px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            color: #5b8cff;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            color: #6b7a99;
+            font-size: 14px;
+        }
+
+        .status-box {
+            background: #111620;
+            border: 1px solid #1e2636;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #1e2636;
+        }
+
+        .status-row:last-child {
+            border-bottom: none;
+        }
+
+        .status-label {
+            font-size: 13px;
+            color: #6b7a99;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .status-value {
+            font-size: 16px;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .status-value.green {
+            color: #00d4a1;
+        }
+
+        .status-value.red {
+            color: #ff4d6a;
+        }
+
+        .status-value.blue {
+            color: #5b8cff;
+        }
+
+        .logs {
+            background: #111620;
+            border: 1px solid #1e2636;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 12px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .log-entry {
+            padding: 5px 0;
+            border-bottom: 1px solid #1e2636;
+            color: #6b7a99;
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .log-entry.trade {
+            color: #00d4a1;
+        }
+
+        .log-entry.error {
+            color: #ff4d6a;
+        }
+
+        .log-entry.info {
+            color: #5b8cff;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            transition: 0.2s;
+        }
+
+        .btn-start {
+            background: linear-gradient(135deg, #00d4a1, #00b88d);
+            color: white;
+        }
+
+        .btn-start:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 24px rgba(0, 212, 161, 0.3);
+        }
+
+        .btn-stop {
+            background: #2c3e50;
+            color: #e8ecf4;
+        }
+
+        .btn-stop:hover {
+            background: #34495e;
+        }
+
+        .btn-stop:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .indicator.active {
+            background: #00d4a1;
+            animation: pulse 1s infinite;
+        }
+
+        .indicator.inactive {
+            background: #6b7a99;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-label .indicator {
+            vertical-align: middle;
+        }
     </style>
 </head>
-<body class="min-h-screen flex flex-col antialiased">
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Admin Auto-Rebalancer</h1>
+            <p>NASDAQ-driven portfolio rebalancing</p>
+        </div>
 
-    <!-- LOGIN SCREEN -->
-    <div id="login-screen" class="min-h-screen flex items-center justify-center">
-        <div class="p-8 rounded-xl shadow-2xl w-96 border bg-panel border-panelBorder">
-            <h1 class="text-2xl font-bold mb-6 text-center">Mock Exchange</h1>
-            <p class="text-sm mb-4 text-textMuted">
-                Trade Stock_A and Crypto_A. $100 flat fee + 0.01% per trade. Connecting to live worker.
-            </p>
-            <input 
-                type="text" 
-                id="nickname-input"
-                placeholder="Enter your nickname" 
-                class="w-full p-3 rounded mb-4 bg-gray-800 text-white outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button 
-                id="start-btn"
-                class="w-full p-3 rounded font-bold transition hover:opacity-90 bg-green text-white"
-            >
-                Start Trading
-            </button>
-            <div id="login-error" class="text-red mt-2 text-sm text-center hidden"></div>
+        <div class="status-box">
+            <div class="status-row">
+                <span class="status-label"><span class="indicator" id="indicator"></span>Status</span>
+                <span class="status-value" id="status">Idle</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">Current NASDAQ</span>
+                <span class="status-value blue" id="nasdaqPrice">--</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">% Change (5s)</span>
+                <span class="status-value" id="percentChange">--</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">Admin Balance</span>
+                <span class="status-value blue" id="adminBalance">--</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">Position (STOCK_A)</span>
+                <span class="status-value" id="adminPosition">None</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">Last Update</span>
+                <span class="status-value" id="lastUpdate">Never</span>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="btn-start" id="startBtn" onclick="startRebalancer()">Start Auto-Rebalance</button>
+            <button class="btn-stop" id="stopBtn" onclick="stopRebalancer()" disabled>Stop</button>
+        </div>
+
+        <div class="logs">
+            <div id="logContainer"></div>
         </div>
     </div>
 
-    <!-- MAIN APP SCREEN (Hidden initially) -->
-    <div id="app-screen" class="hidden flex-1 flex flex-col h-screen overflow-hidden">
-        
-        <!-- HEADER -->
-        <header class="flex justify-between items-center p-4 border-b bg-panel border-panelBorder">
-            <div class="flex items-center gap-4">
-                <h1 class="text-xl font-black tracking-tight">MOCK<span class="text-blue-500">EX</span></h1>
-                <div class="flex gap-2" id="asset-tabs">
-                    <button data-asset="STOCK_A" class="asset-tab px-4 py-1.5 rounded-full text-sm font-semibold transition bg-blue-600 text-white">Stock A</button>
-                    <button data-asset="CRYPTO_A" class="asset-tab px-4 py-1.5 rounded-full text-sm font-semibold transition hover:bg-gray-800 text-textMuted">Crypto A</button>
-                </div>
-            </div>
-            
-            <div class="flex items-center gap-6">
-                <div class="text-right">
-                    <div class="text-xs font-semibold uppercase tracking-wider text-textMuted">Trader</div>
-                    <div class="font-bold" id="display-nickname">---</div>
-                </div>
-                <div class="text-right">
-                    <div class="text-xs font-semibold uppercase tracking-wider text-textMuted">Cash Balance</div>
-                    <div class="font-mono" id="display-balance">$0.00</div>
-                </div>
-                <div class="text-right">
-                    <div class="text-xs font-semibold uppercase tracking-wider text-textMuted">Net Worth</div>
-                    <div class="font-mono text-blue-400 font-bold" id="display-networth">$0.00</div>
-                </div>
-            </div>
-        </header>
-
-        <!-- MAIN CONTENT -->
-        <main class="flex-1 flex flex-col lg:flex-row p-4 gap-4 overflow-hidden">
-            
-            <!-- CHART COLUMN -->
-            <div class="flex-1 flex flex-col rounded-xl border overflow-hidden bg-panel border-panelBorder">
-                <div class="p-4 border-b flex justify-between items-end border-panelBorder">
-                    <div>
-                        <h2 class="text-2xl font-bold" id="chart-title">STOCK_A</h2>
-                        <div class="text-sm text-textMuted">
-                            Supply Available: <span class="text-white font-mono" id="display-supply">---</span> / 1000
-                        </div>
-                    </div>
-                    <div class="text-3xl font-mono text-green" id="display-price">
-                        $---
-                    </div>
-                </div>
-                <div class="flex-1 relative" id="chart-container">
-                    <!-- Chart goes here -->
-                </div>
-            </div>
-
-            <!-- TRADING COLUMN -->
-            <div class="w-full lg:w-80 flex flex-col gap-4">
-                <div class="p-5 rounded-xl border flex flex-col gap-4 bg-panel border-panelBorder">
-                    <h3 class="font-bold uppercase tracking-wider text-sm text-textMuted">Order Entry</h3>
-                    
-                    <div class="bg-gray-900 rounded border border-gray-700 flex items-center p-2">
-                        <input 
-                            type="number" 
-                            id="order-qty"
-                            placeholder="0.00"
-                            class="bg-transparent text-right font-mono text-lg w-full outline-none text-white"
-                        />
-                        <span class="ml-2 font-semibold text-gray-500">Shares</span>
-                    </div>
-
-                    <div class="text-xs flex justify-between font-mono text-textMuted">
-                        <span>Est. Fee:</span>
-                        <span id="est-fee">$100.00</span>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-2 mt-2">
-                        <button onclick="executeTrade('BUY')" class="py-3 rounded font-bold transition hover:opacity-80 bg-green text-white">Buy Long</button>
-                        <button onclick="executeTrade('SELL')" class="py-3 rounded font-bold transition hover:opacity-80 border border-green text-green">Sell Long</button>
-                        <button onclick="executeTrade('SHORT')" class="py-3 rounded font-bold transition hover:opacity-80 mt-2 bg-red text-white">Short Sell</button>
-                        <button onclick="executeTrade('COVER')" class="py-3 rounded font-bold transition hover:opacity-80 border border-red text-red mt-2">Cover Short</button>
-                    </div>
-                </div>
-
-                <!-- POSITIONS WIDGET -->
-                <div class="flex-1 rounded-xl border flex flex-col overflow-hidden bg-panel border-panelBorder">
-                    <h3 class="p-4 font-bold uppercase tracking-wider text-sm border-b text-textMuted border-panelBorder">Active Positions</h3>
-                    <div class="flex-1 overflow-y-auto p-4 space-y-3" id="positions-list">
-                        <!-- Positions injected here via JS -->
-                        <div class="text-center text-sm mt-10 text-textMuted">No open positions</div>
-                    </div>
-                </div>
-            </div>
-        </main>
-    </div>
-
     <script>
-        // --- CONSTANTS & API ---
-        const API_BASE = 'https://ise.fullynerfed.workers.dev';
-        const BASE_FEE = 100;
-        const VAR_FEE_RATE = 0.0001;
-        
-        // --- APP STATE ---
-        let user = { id: null, nickname: '', balance: 0 };
-        let activeAsset = 'STOCK_A';
-        let positions = []; // { id, asset, type, shares, entryPrice }
-        let marketData = {
-            STOCK_A: { price: 50, available_shares: 1000 },
-            CRYPTO_A: { price: 50, available_shares: 1000 }
-        };
-        let chartData = {
-            STOCK_A: [],
-            CRYPTO_A: []
-        };
-        
-        // --- CHART VARIABLES ---
-        let chart = null;
-        let candlestickSeries = null;
+        let rebalancerActive = false;
+        let rebalancerInterval = null;
+        let lastNasdaqPrice = null;
+        let lastCheckTime = 0;
+        let adminUserId = null;
+        const CHECK_INTERVAL = 5000; // 5 seconds
 
-        // --- DOM ELEMENTS ---
-        const els = {
-            loginScreen: document.getElementById('login-screen'),
-            appScreen: document.getElementById('app-screen'),
-            nicknameInput: document.getElementById('nickname-input'),
-            startBtn: document.getElementById('start-btn'),
-            loginError: document.getElementById('login-error'),
-            displayNickname: document.getElementById('display-nickname'),
-            displayBalance: document.getElementById('display-balance'),
-            displayNetworth: document.getElementById('display-networth'),
-            chartTitle: document.getElementById('chart-title'),
-            displaySupply: document.getElementById('display-supply'),
-            displayPrice: document.getElementById('display-price'),
-            orderQty: document.getElementById('order-qty'),
-            estFee: document.getElementById('est-fee'),
-            positionsList: document.getElementById('positions-list'),
-            chartContainer: document.getElementById('chart-container'),
-            assetTabs: document.querySelectorAll('.asset-tab')
-        };
+        const API_BASE = 'http://localhost:3000/api';
 
-        // --- INITIALIZATION ---
-        function initChart() {
-            chart = LightweightCharts.createChart(els.chartContainer, {
-                layout: { background: { type: 'solid', color: 'transparent' }, textColor: '#848E9C' },
-                grid: { vertLines: { color: '#2B3139' }, horzLines: { color: '#2B3139' } },
-                crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-                timeScale: { timeVisible: true, secondsVisible: true }
-            });
-            
-            candlestickSeries = chart.addCandlestickSeries({
-                upColor: '#2EBD85', downColor: '#F6465D', borderVisible: false,
-                wickUpColor: '#2EBD85', wickDownColor: '#F6465D'
-            });
+        function log(message, type = 'info') {
+            const container = document.getElementById('logContainer');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const time = new Date().toLocaleTimeString();
+            entry.textContent = `[${time}] ${message}`;
+            container.insertBefore(entry, container.firstChild);
 
-            new ResizeObserver(() => {
-                chart.applyOptions({ width: els.chartContainer.clientWidth, height: els.chartContainer.clientHeight });
-            }).observe(els.chartContainer);
-
-            // Init empty candles
-            const now = Math.floor(Date.now() / 1000);
-            ['STOCK_A', 'CRYPTO_A'].forEach(asset => {
-                chartData[asset] = [{ time: now, open: 50, high: 50, low: 50, close: 50 }];
-            });
-            candlestickSeries.setData(chartData[activeAsset]);
-        }
-
-        // --- EVENT LISTENERS ---
-        els.startBtn.addEventListener('click', async () => {
-            const nickname = els.nicknameInput.value.trim();
-            if (!nickname) return;
-            
-            els.startBtn.innerText = "Connecting...";
-            els.startBtn.disabled = true;
-
-            try {
-                const res = await fetch(`${API_BASE}/api/register`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nickname })
-                });
-                
-                if (!res.ok) throw new Error("Failed to register");
-                const data = await res.json();
-                
-                user = { id: data.id, nickname: data.nickname, balance: data.balance };
-                
-                els.loginScreen.classList.add('hidden');
-                els.appScreen.classList.remove('hidden');
-                
-                els.displayNickname.innerText = user.nickname;
-                updateStats();
-                initChart();
-                
-                // Start polling market
-                pollMarket();
-                setInterval(pollMarket, 2000); // Poll every 2 seconds
-
-            } catch (err) {
-                els.loginError.innerText = "Error connecting to worker. Is it deployed?";
-                els.loginError.classList.remove('hidden');
-                els.startBtn.innerText = "Start Trading";
-                els.startBtn.disabled = false;
-            }
-        });
-
-        els.assetTabs.forEach(tab => {
-            tab.addEventListener('click', (e) => {
-                activeAsset = e.target.dataset.asset;
-                
-                // Update UI Tabs
-                els.assetTabs.forEach(t => {
-                    if(t.dataset.asset === activeAsset) {
-                        t.className = "asset-tab px-4 py-1.5 rounded-full text-sm font-semibold transition bg-blue-600 text-white";
-                    } else {
-                        t.className = "asset-tab px-4 py-1.5 rounded-full text-sm font-semibold transition hover:bg-gray-800 text-textMuted";
-                    }
-                });
-
-                els.chartTitle.innerText = activeAsset;
-                candlestickSeries.setData(chartData[activeAsset]);
-                updateUI();
-            });
-        });
-
-        els.orderQty.addEventListener('input', () => {
-            const qty = parseFloat(els.orderQty.value) || 0;
-            const price = marketData[activeAsset].price;
-            const fee = BASE_FEE + (qty * price * VAR_FEE_RATE);
-            els.estFee.innerText = `$${fee.toFixed(2)}`;
-        });
-
-        // --- POLLING & DATA ---
-        async function pollMarket() {
-            try {
-                const res = await fetch(`${API_BASE}/api/market`);
-                if (!res.ok) return;
-                const markets = await res.json();
-                
-                const now = Math.floor(Date.now() / 1000);
-                const currentCandleTime = Math.floor(now / 5) * 5;
-
-                markets.forEach(m => {
-                    const id = m.asset;
-                    marketData[id] = { price: m.price, available_shares: m.available_shares };
-                    
-                    const series = chartData[id];
-                    const lastCandle = series[series.length - 1];
-                    const newPrice = m.price;
-
-                    if (lastCandle.time === currentCandleTime) {
-                        lastCandle.high = Math.max(lastCandle.high, newPrice);
-                        lastCandle.low = Math.min(lastCandle.low, newPrice);
-                        lastCandle.close = newPrice;
-                    } else {
-                        series.push({
-                            time: currentCandleTime,
-                            open: lastCandle.close,
-                            high: Math.max(lastCandle.close, newPrice),
-                            low: Math.min(lastCandle.close, newPrice),
-                            close: newPrice
-                        });
-                    }
-                    if (series.length > 200) series.shift();
-                });
-
-                // Update chart if it's the active asset
-                if (candlestickSeries && chartData[activeAsset]) {
-                    candlestickSeries.update(chartData[activeAsset][chartData[activeAsset].length - 1]);
-                }
-                
-                updateUI();
-                renderPositions();
-            } catch (err) {
-                console.error("Market poll error:", err);
+            // Keep only last 50 logs
+            while (container.children.length > 50) {
+                container.removeChild(container.lastChild);
             }
         }
 
-        // --- TRADING LOGIC ---
-        async function executeTrade(action) {
-            const qty = parseFloat(els.orderQty.value);
-            if (isNaN(qty) || qty <= 0) return alert("Enter a valid quantity");
-
-            try {
-                // Optimistic UI checks based on local state
-                const mkt = marketData[activeAsset];
-                const existingPosIdx = positions.findIndex(p => p.asset === activeAsset);
-                const existingPos = positions[existingPosIdx];
-
-                if ((action === 'BUY' || action === 'COVER') && mkt.available_shares < qty) {
-                    return alert(`Only ${Math.floor(mkt.available_shares)} shares available`);
-                }
-                if (action === 'BUY' && existingPos && existingPos.type === 'SHORT') return alert("Cover your short first!");
-                if (action === 'SELL' && (!existingPos || existingPos.type !== 'LONG' || existingPos.shares < qty)) return alert("Not enough long shares to sell");
-                if (action === 'SHORT' && existingPos && existingPos.type === 'LONG') return alert("Sell your long first!");
-                if (action === 'COVER' && (!existingPos || existingPos.type !== 'SHORT' || existingPos.shares < qty)) return alert("Not enough short shares to cover");
-
-                // Call Worker API
-                const res = await fetch(`${API_BASE}/api/trade`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId: user.id, asset: activeAsset, action, shares: qty })
-                });
-
-                const result = await res.json();
-                if (!res.ok) throw new Error(result.error || "Trade failed");
-
-                // Success! Update local state to reflect the transaction
-                const fillPrice = result.fillPrice;
-                const totalFee = result.totalFee;
-                const costOrRev = fillPrice * qty;
-
-                // Update Balance & Positions accurately based on the transaction action
-                if (action === 'BUY') {
-                    user.balance -= (costOrRev + totalFee);
-                    if (existingPos) {
-                        existingPos.entryPrice = ((existingPos.entryPrice * existingPos.shares) + (fillPrice * qty)) / (existingPos.shares + qty);
-                        existingPos.shares += qty;
-                    } else {
-                        positions.push({ id: crypto.randomUUID(), asset: activeAsset, type: 'LONG', shares: qty, entryPrice: fillPrice });
-                    }
-                } else if (action === 'SELL') {
-                    user.balance += (costOrRev - totalFee);
-                    existingPos.shares -= qty;
-                    if (existingPos.shares <= 0) positions.splice(existingPosIdx, 1);
-                } else if (action === 'SHORT') {
-                    user.balance += (costOrRev - totalFee);
-                    if (existingPos) {
-                        existingPos.entryPrice = ((existingPos.entryPrice * existingPos.shares) + (fillPrice * qty)) / (existingPos.shares + qty);
-                        existingPos.shares += qty;
-                    } else {
-                        positions.push({ id: crypto.randomUUID(), asset: activeAsset, type: 'SHORT', shares: qty, entryPrice: fillPrice });
-                    }
-                } else if (action === 'COVER') {
-                    user.balance -= (costOrRev + totalFee);
-                    existingPos.shares -= qty;
-                    if (existingPos.shares <= 0) positions.splice(existingPosIdx, 1);
-                }
-
-                els.orderQty.value = '';
-                els.estFee.innerText = `$${BASE_FEE.toFixed(2)}`;
-                
-                // Immediately refresh market data from backend
-                await pollMarket(); 
-                
-            } catch (err) {
-                alert(err.message);
-            }
-        }
-
-        // --- UI UPDATES ---
         function updateUI() {
-            const mkt = marketData[activeAsset];
-            els.displaySupply.innerText = mkt.available_shares.toFixed(2);
-            
-            els.displayPrice.innerText = `$${mkt.price.toFixed(2)}`;
-            if (mkt.price >= 50) { // Using 50 as baseline for color logic 
-                els.displayPrice.className = "text-3xl font-mono text-green";
+            const indicator = document.getElementById('indicator');
+            const statusEl = document.getElementById('status');
+            const startBtn = document.getElementById('startBtn');
+            const stopBtn = document.getElementById('stopBtn');
+
+            if (rebalancerActive) {
+                indicator.className = 'indicator active';
+                statusEl.textContent = 'Running';
+                statusEl.className = 'status-value green';
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
             } else {
-                els.displayPrice.className = "text-3xl font-mono text-red";
+                indicator.className = 'indicator inactive';
+                statusEl.textContent = 'Stopped';
+                statusEl.className = 'status-value';
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
             }
-            updateStats();
         }
 
-        function updateStats() {
-            let nw = user.balance;
-            positions.forEach(p => {
-                const currentPrice = marketData[p.asset].price;
-                if (p.type === 'LONG') nw += (p.shares * currentPrice);
-                else if (p.type === 'SHORT') nw -= (p.shares * currentPrice);
-            });
-            
-            els.displayBalance.innerText = `$${user.balance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits:2})}`;
-            els.displayNetworth.innerText = `$${nw.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits:2})}`;
+        async function fetchAdminUser() {
+            try {
+                const res = await fetch(`${API_BASE}/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nickname: 'admin' })
+                });
+                const data = await res.json();
+                adminUserId = data.id;
+                document.getElementById('adminBalance').textContent = `$${data.balance.toFixed(2)}`;
+                return data;
+            } catch (err) {
+                log(`Error fetching admin user: ${err.message}`, 'error');
+                return null;
+            }
         }
 
-        function renderPositions() {
-            if (positions.length === 0) {
-                els.positionsList.innerHTML = '<div class="text-center text-sm mt-10 text-textMuted">No open positions</div>';
+        async function getAdminState() {
+            if (!adminUserId) return null;
+            try {
+                const res = await fetch(`${API_BASE}/user?id=${adminUserId}`);
+                const data = await res.json();
+                document.getElementById('adminBalance').textContent = `$${data.balance.toFixed(2)}`;
+
+                // Update position display
+                const pos = data.positions.find(p => p.asset === 'STOCK_A');
+                if (pos) {
+                    document.getElementById('adminPosition').textContent = `${pos.type} ${pos.shares} @ $${pos.entryPrice.toFixed(2)}`;
+                    if (pos.type === 'LONG') {
+                        document.getElementById('adminPosition').className = 'status-value green';
+                    } else {
+                        document.getElementById('adminPosition').className = 'status-value red';
+                    }
+                } else {
+                    document.getElementById('adminPosition').textContent = 'None';
+                    document.getElementById('adminPosition').className = 'status-value';
+                }
+
+                return data;
+            } catch (err) {
+                log(`Error fetching admin state: ${err.message}`, 'error');
+                return null;
+            }
+        }
+
+        async function getNasdaqPrice() {
+            try {
+                const res = await fetch('http://localhost:3000/nasdaq');
+                const data = await res.json();
+                return data['nasdaq-composite-index']?.usd;
+            } catch (err) {
+                log(`Error fetching NASDAQ price: ${err.message}`, 'error');
+                return null;
+            }
+        }
+
+        async function liquidatePosition(adminState) {
+            const pos = adminState.positions.find(p => p.asset === 'STOCK_A');
+            if (!pos) return null;
+
+            const action = pos.type === 'LONG' ? 'SELL' : 'COVER';
+            try {
+                const res = await fetch(`${API_BASE}/trade`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: adminUserId,
+                        asset: 'STOCK_A',
+                        action,
+                        shares: pos.shares
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    log(`Liquidated ${action} ${pos.shares} shares @ $${data.fillPrice.toFixed(2)}`, 'trade');
+                    return data;
+                }
+            } catch (err) {
+                log(`Error liquidating position: ${err.message}`, 'error');
+            }
+            return null;
+        }
+
+        async function openPosition(action, shares) {
+            if (shares <= 0) return null;
+
+            try {
+                const res = await fetch(`${API_BASE}/trade`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: adminUserId,
+                        asset: 'STOCK_A',
+                        action,
+                        shares
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    log(`Opened ${action} ${shares} shares @ $${data.fillPrice.toFixed(2)}`, 'trade');
+                    return data;
+                }
+            } catch (err) {
+                log(`Error opening position: ${err.message}`, 'error');
+            }
+            return null;
+        }
+
+        async function rebalance() {
+            const now = Date.now();
+            if (now - lastCheckTime < CHECK_INTERVAL) {
+                return; // Not enough time has passed
+            }
+            lastCheckTime = now;
+
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+
+            // Fetch NASDAQ price
+            const nasdaqPrice = await getNasdaqPrice();
+            if (!nasdaqPrice) return;
+
+            document.getElementById('nasdaqPrice').textContent = nasdaqPrice.toFixed(2);
+
+            // Calculate percentage change
+            let percentChange = 0;
+            if (lastNasdaqPrice) {
+                percentChange = ((nasdaqPrice - lastNasdaqPrice) / lastNasdaqPrice) * 100;
+                const changeEl = document.getElementById('percentChange');
+                changeEl.textContent = percentChange.toFixed(2) + '%';
+                changeEl.className = 'status-value ' + (percentChange > 0 ? 'green' : percentChange < 0 ? 'red' : '');
+            }
+
+            lastNasdaqPrice = nasdaqPrice;
+
+            // Only rebalance if change > 0.01%
+            if (Math.abs(percentChange) > 0.01) {
+                log(`NASDAQ moved ${percentChange.toFixed(2)}% - rebalancing...`, 'info');
+
+                // Get current admin state
+                const adminState = await getAdminState();
+                if (!adminState) return;
+
+                // Liquidate existing position
+                const pos = adminState.positions.find(p => p.asset === 'STOCK_A');
+                if (pos && pos.shares > 0) {
+                    await liquidatePosition(adminState);
+                    // Wait a moment for state to update
+                    await new Promise(r => setTimeout(r, 100));
+                }
+
+                // Open new position based on direction
+                const sharesToTrade = Math.floor(Math.abs(percentChange));
+                const action = percentChange > 0 ? 'BUY' : 'SHORT';
+
+                if (sharesToTrade > 0) {
+                    await openPosition(action, sharesToTrade);
+                    // Refresh admin state
+                    await getAdminState();
+                }
+            }
+        }
+
+        async function startRebalancer() {
+            if (rebalancerActive) return;
+
+            log('Starting auto-rebalancer...', 'info');
+
+            // Ensure admin user exists
+            if (!adminUserId) {
+                const admin = await fetchAdminUser();
+                if (!admin) {
+                    log('Failed to initialize admin user', 'error');
+                    return;
+                }
+            }
+
+            // Get initial NASDAQ price
+            const price = await getNasdaqPrice();
+            if (!price) {
+                log('Failed to fetch initial NASDAQ price', 'error');
                 return;
             }
 
-            els.positionsList.innerHTML = positions.map(pos => {
-                const curPrice = marketData[pos.asset].price;
-                const pnl = pos.type === 'LONG' 
-                    ? (curPrice - pos.entryPrice) * pos.shares
-                    : (pos.entryPrice - curPrice) * pos.shares;
-                
-                const pnlColorClass = pnl >= 0 ? 'text-green' : 'text-red';
-                const pnlSign = pnl >= 0 ? '+' : '-';
-                const badgeClass = pos.type === 'LONG' ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300';
+            lastNasdaqPrice = price;
+            lastCheckTime = Date.now();
+            rebalancerActive = true;
+            updateUI();
 
-                return `
-                    <div class="p-3 rounded bg-gray-900 border border-gray-800 text-sm">
-                        <div class="flex justify-between items-center mb-2">
-                            <span class="font-bold">${pos.asset}</span>
-                            <span class="px-2 py-0.5 rounded text-xs font-bold ${badgeClass}">${pos.type}</span>
-                        </div>
-                        <div class="flex justify-between font-mono text-xs mb-1 text-textMuted">
-                            <span>Size: ${pos.shares}</span>
-                            <span>Entry: $${pos.entryPrice.toFixed(2)}</span>
-                        </div>
-                        <div class="flex justify-between font-mono font-bold mt-2">
-                            <span>PnL:</span>
-                            <span class="${pnlColorClass}">${pnlSign}$${Math.abs(pnl).toFixed(2)}</span>
-                        </div>
-                    </div>
-                `;
-            }).join('');
+            log('Auto-rebalancer started. Checking every 5 seconds...', 'info');
+
+            // Start polling
+            rebalancerInterval = setInterval(rebalance, 1000); // Check every 1 second if 5 seconds have passed
         }
 
+        function stopRebalancer() {
+            if (!rebalancerActive) return;
+
+            rebalancerActive = false;
+            if (rebalancerInterval) {
+                clearInterval(rebalancerInterval);
+                rebalancerInterval = null;
+            }
+
+            updateUI();
+            log('Auto-rebalancer stopped', 'info');
+        }
+
+        // Initialize
+        async function init() {
+            updateUI();
+            await fetchAdminUser();
+            if (adminUserId) {
+                await getAdminState();
+            }
+        }
+
+        init();
     </script>
 </body>
 </html>
